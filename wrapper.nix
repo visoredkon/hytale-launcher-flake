@@ -28,14 +28,26 @@ let
 
     targetPkgs =
       pkgs: with pkgs; [
+        # Launcher's Deps
         glib
         gtk3
         gdk-pixbuf
         libsoup_3
         webkitgtk_4_1
 
-        jq
+        # Game's Deps
+        alsa-lib
+        icu
+        openssl
+        libGL
+        libxkbcommon
+        wayland
+
+        # Script's Deps
+        bash
+        coreutils
         curl
+        jq
         unzip
       ];
 
