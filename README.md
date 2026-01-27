@@ -1,10 +1,9 @@
 # Unofficial Hytale Launcher Nix Flake for NixOS
 
-[![Compliance: Designed for ToS Safety](https://img.shields.io/badge/Compliance-ToS%20Design--Intent-green)](https://hytale.com/terms-of-service)
-[![License: Unspecified](https://img.shields.io/badge/License-Unspecified-lightgrey)](#legal-notice)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![NixOS](https://img.shields.io/badge/NixOS-Unstable-blue.svg)](https://nixos.org)
 
-An uncertified, open-source **Nix flake** that provides an interoperability wrapper to execute the **official** Hytale Launcher on NixOS using an FHS-compatible runtime environment.
+An open-source **Nix flake** that wraps the **official** Hytale Launcher for NixOS using an FHS-compatible runtime environment.
 
 > ⚠️ **Disclaimer**
 > This project is **not** affiliated with, endorsed by, or associated with Hypixel Studios Canada Inc. It is a community-maintained interoperability wrapper intended solely to enable platform compatibility.
@@ -13,47 +12,40 @@ An uncertified, open-source **Nix flake** that provides an interoperability wrap
 
 ## Overview
 
-This repository provides a Nix flake that enables the lawful execution of the officially distributed Hytale Launcher on the NixOS operating system. NixOS deliberately does not provide a traditional Filesystem Hierarchy Standard (FHS) runtime environment, which many proprietary Linux applications implicitly rely on. The flake supplies a controlled FHS-compatible execution environment without modifying the upstream software.
+This repository provides a Nix flake that runs the official Hytale Launcher on NixOS. Since NixOS doesn't provide a traditional Filesystem Hierarchy Standard (FHS) environment that many Linux applications expect, this flake creates an FHS-compatible sandbox without modifying the launcher binary.
 
 ---
 
-## Project Boundaries
+## What This Does (and Doesn't Do)
 
-The scope of this project is deliberately narrow and conservative. It exists solely to provide operating-system-level interoperability via Nix, without altering the behavior, distribution model, or trust boundaries of the official launcher.
+This is a simple compatibility wrapper for NixOS. It only provides the runtime environment needed to run the official launcher.
 
 This project does **not**:
 
-- Replace, reimplement, or extend the functionality of the official Hytale launcher
-- Modify, patch, hook, or inject code into Hytale binaries
-- Bypass DRM, entitlement validation, or authentication systems
-- Enable offline, cracked, or unauthorized access to Hytale services
-- Provide gameplay modifications, cheats, or protocol alterations
-
-Any functionality that falls under these categories is out of scope for this project.
+- Bypass authentication, DRM, or any security systems
+- Enable offline play, cracks, or unauthorized access
+- Modify or patch the Hytale launcher binary
+- Provide mods, cheats, or gameplay modifications
+- Redistribute Hytale binaries or assets
 
 ---
 
-## Terms of Service & EULA Design Intent
+## Compliance Notes
 
-This project is designed in **good faith** to avoid behaviors restricted under Hypixel Studios Canada Inc.'s publicly available [Terms of Service](https://hytale.com/terms-of-service) and [End-User License Agreement](https://hytale.com/eula). The following statements describe technical _design intent_, not legal guarantees.
+This wrapper is designed to be compatible with Hytale's [Terms of Service](https://hytale.com/terms-of-service) and [EULA](https://hytale.com/eula). Here's how it works:
 
-| Design Principle                  | Technical Behavior                                                                                                                                                                                                                                                |
-| :-------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Authentication Isolation**      | The wrapper executes the official launcher binary without modification. All authentication, entitlement checks, and account handling remain exclusively within the official client. No credentials are accessed, intercepted, stored, or proxied by this project. |
-| **Binary Integrity Preservation** | Launcher binaries are downloaded at runtime from official Hypixel-controlled endpoints and validated using SHA-256 checksums published by the official launcher metadata API. This project does not alter, patch, or instrument the downloaded binaries.          |
-| **No Redistribution**             | This repository contains only Nix expressions and shell scripts. It does not ship, cache, mirror, or redistribute Hytale binaries, assets, or proprietary data.                                                                                                   |
-| **No Reverse Engineering**        | The wrapper operates strictly as an execution environment. It does not perform decompilation, disassembly, binary instrumentation, debugging attachment, or runtime code injection.                                                                               |
-| **Official Source Retrieval**     | All proprietary components are retrieved at runtime directly from official Hypixel-controlled infrastructure. No third-party mirrors are used or provided.                                                                                                        |
+| Component               | Implementation                                                                                                                               |
+| :---------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Authentication**      | Handled entirely by the official launcher. No credentials are accessed or intercepted by this wrapper.                                       |
+| **Distribution**        | This repository only contains Nix code. No Hytale binaries or assets are included or redistributed.                                          |
+| **Launcher Binary**     | Downloaded directly from official Hytale endpoints and verified with SHA-256 checksums from their API. Not modified or patched.             |
+| **Runtime Environment** | Provides an FHS-compatible sandbox using `buildFHSEnv`. The launcher runs as-is without code injection, debugging, or reverse engineering. |
 
-### Referenced Document Versions
+**Referenced Documents:**
+- Terms of Service v2.2 (Effective January 13, 2026)
+- EULA v2.3 (Effective January 13, 2026)
 
-The design-intent analysis above reflects the following document versions as published at the time of writing:
-
-- **Terms of Service**: Version 2.2 (Effective January 13, 2026)
-- **End-User License Agreement**: Version 2.3 (Effective January 13, 2026)
-
-> **Interpretation Notice**
-> The statements above reflect the authors' good-faith technical interpretation of the referenced documents as of their effective dates. This repository does not provide legal advice, does not claim authoritative interpretation of these documents, and makes no guarantees regarding future enforcement policies or document revisions.
+> **Note:** This is a technical implementation, not legal advice. Users are responsible for their own compliance with Hytale's terms.
 
 ---
 
@@ -64,34 +56,156 @@ The design-intent analysis above reflects the following document versions as pub
 
 ---
 
+## Unfree License Notice
+
+The Hytale Launcher is proprietary software with an unfree license. You must explicitly allow unfree packages in your Nix configuration.
+
+### Option 1: Environment Variable (Recommended for testing)
+
+```bash
+NIXPKGS_ALLOW_UNFREE=1 nix run --impure github:visoredkon/hytale-launcher-flake
+```
+
+### Option 2: NixOS Configuration (System-wide)
+
+```nix
+# configuration.nix or in your flake's nixpkgs config
+nixpkgs.config.allowUnfree = true;
+```
+
+### Option 3: Selective Allow
+
+```nix
+# configuration.nix or in your flake's nixpkgs config
+nixpkgs.config.allowUnfreePredicate = pkg:
+  builtins.elem (lib.getName pkg) [
+    "hytale-launcher"
+  ];
+```
+
+---
+
 ## Usage
 
 ### Run Without Installing (Ephemeral)
 
 ```bash
-nix run github:visoredkon/hytale-launcher-flake
+NIXPKGS_ALLOW_UNFREE=1 nix run --impure github:visoredkon/hytale-launcher-flake
 ```
 
 ### Manual Build
 
 ```bash
-nix build
+NIXPKGS_ALLOW_UNFREE=1 nix build --impure
 ./result/bin/hytale-launcher
 ```
 
-### NixOS System Integration
+### NixOS Integration
+
+The overlay approach allows the package to use your system's nixpkgs configuration (including `allowUnfree` settings).
 
 ```nix
 {
-  inputs.hytale-launcher.url = "github:visoredkon/hytale-launcher-flake";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    hytale-launcher = {
+      url = "github:visoredkon/hytale-launcher-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = { nixpkgs, hytale-launcher, ... }: {
+    nixosConfigurations.yourhost = nixpkgs.lib.nixosSystem {
+      modules = [
+        {
+          # Add overlay to nixpkgs
+          nixpkgs.overlays = [ hytale-launcher.overlays.default ];
+
+          # Configure allowUnfree
+          nixpkgs.config.allowUnfreePredicate = pkg:
+            builtins.elem (lib.getName pkg) [
+              "hytale-launcher"
+            ];
+        }
+
+        # Now use it in your config
+        {
+          environment.systemPackages = [ pkgs.hytale-launcher ];
+        }
+      ];
+    };
+  };
 }
 ```
 
+### Home Manager Integration
+
 ```nix
-environment.systemPackages = [
-  hytale-launcher.packages.x86_64-linux.default
-];
+{
+  inputs = {
+    home-manager.url = "github:nix-community/home-manager";
+    hytale-launcher.url = "github:visoredkon/hytale-launcher-flake";
+  };
+
+  outputs = { home-manager, hytale-launcher, ... }: {
+    homeConfigurations.youruser = home-manager.lib.homeManagerConfiguration {
+      modules = [
+        {
+          # Add overlay to nixpkgs
+          nixpkgs.overlays = [ hytale-launcher.overlays.default ];
+
+          # Configure allowUnfree
+          nixpkgs.config.allowUnfreePredicate = pkg:
+            builtins.elem (lib.getName pkg) [ "hytale-launcher" ];
+        }
+
+        # Now use it in your config
+        {
+          home.packages = [ pkgs.hytale-launcher ];
+        }
+      ];
+    };
+  };
+}
 ```
+
+---
+
+## Development & Maintenance
+
+### Updating to Latest Launcher Version
+
+This repository includes an automated update script that fetches the latest launcher version from Hytale's official API:
+
+```bash
+# Preview changes
+./update-version.sh
+
+# Commit changes
+./update-version.sh --commit
+
+# Commit and push
+./update-version.sh --commit --push
+```
+
+The script automatically:
+- Fetches version metadata from `https://launcher.hytale.com/version/release/launcher.json`
+- Updates `version` and `sha256` hash in `wrapper.nix`
+- Updates `flake.lock` with `nix flake update`
+- Commits changes with conventional commit message (if `--commit` flag is used)
+
+### Development Environment
+
+Enter the development shell:
+
+```bash
+nix develop
+```
+
+Available commands:
+- `nix build` - Build the package
+- `nix fmt` - Format Nix and shell script files
+- `nix flake check` - Run all checks (build + format validation)
 
 ---
 
@@ -105,6 +219,6 @@ Any trademarks, service marks, logos, or visual assets are used solely for ident
 
 ## Legal Notice
 
-1. **License**: No explicit license is granted for the scripts and Nix expressions in this repository unless stated otherwise. The Hytale Launcher binary downloaded and executed by this wrapper is proprietary software governed by the Hytale End-User License Agreement.
-2. **No Warranty**: This software is provided "as is", without warranty of any kind, express or implied.
+1. **License**: This repository (Nix expressions and shell scripts) is licensed under the [MIT License](LICENSE). The Hytale Launcher binary downloaded and executed by this wrapper is proprietary software governed by the Hytale End-User License Agreement.
+2. **No Warranty**: This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement.
 3. **User Responsibility**: Users are responsible for ensuring their use of this tool complies with applicable Terms of Service and local laws in their jurisdiction.
