@@ -2,7 +2,7 @@
 
 let
   pname = "hytale-launcher";
-  version = "2026.01.28-6fc68ec";
+  version = "2026.01.29-a86a538";
 
   app = rec {
     inherit pname version;
@@ -16,7 +16,7 @@ let
     categories = [ "Game" ];
     baseUrl = "https://launcher.hytale.com/builds/release/linux/amd64";
     url = "${baseUrl}/${pname}-${version}.zip";
-    sha256 = "sha256-Pg2Q4J3P/Ln4JrlCTW1MdQU+6qxxfurMHrh7Rv+1P6E=";
+    sha256 = "sha256-WaFwIUOf4W8D8M7ZWzuwFCnHHdGtOI8Sx6BI1rXrL0k=";
     iconUrl = "https://hytale.com/favicon.ico";
     iconSha256 = "eniMb/wct+vjtzXF2z8Z1XPBmwabjV8RCDyd8J1QLT0=";
   };
