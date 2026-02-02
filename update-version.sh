@@ -37,7 +37,7 @@ die() {
 }
 
 info() {
-  printf '==> %s\n' "$*"
+  printf '==> %s\n' "$*" >&2
 }
 
 parse_args() {
@@ -67,54 +67,79 @@ parse_args() {
 parse_args "$@"
 
 fetch_version_info() {
-  info "Fetching latest version from Hytale API..." >&2
+  info "Fetching latest version from API..."
 
   local api_data
-  api_data=$(curl -fsSL "$API_URL") || die "Failed to fetch API data"
+  if ! api_data=$(curl -fsSL "$API_URL" 2>&1); then
+    die "Failed to fetch API data: $api_data"
+  fi
 
-  local version hex_hash
-  version=$(jq -er '.version' <<< "$api_data") || die "Missing version in API response"
-  hex_hash=$(jq -er '.download_url.linux.amd64.sha256' <<< "$api_data") || die "Missing checksum in API response"
+  local version zip_url
+  if ! version=$(jq -er '.version' <<< "$api_data" 2>&1); then
+    die "Missing version in API response: $version"
+  fi
+  if ! zip_url=$(jq -er '.download_url.linux.amd64.url' <<< "$api_data" 2>&1); then
+    die "Missing download URL in API response: $zip_url"
+  fi
 
-  [[ -n "$version" && -n "$hex_hash" ]] || die "Invalid API response"
+  info "Latest version: $version"
 
-  info "Latest version: $version" >&2
+  local flatpak_url="${zip_url%.zip}.flatpak"
+  info "Flatpak URL: $flatpak_url"
 
-  local sri_hash
-  sri_hash=$(nix-hash --to-sri --type sha256 "$hex_hash")
-  info "Converted hash to SRI format: $sri_hash" >&2
+  local nix_hash sri_hash
+  if ! nix_hash=$(nix-prefetch-url --type sha256 "$flatpak_url" 2>&1 | tail -n1); then
+    die "Failed to fetch flatpak from $flatpak_url"
+  fi
 
-  echo "$version $sri_hash"
+  if ! sri_hash=$(nix-hash --to-sri --type sha256 "$nix_hash" 2>&1); then
+    die "Failed to convert hash to SRI format: $sri_hash"
+  fi
+
+  info "Computed hash (SRI): $sri_hash"
+
+  printf '%s %s\n' "$version" "$sri_hash"
 }
 
 get_current_version() {
   grep -oP '^\s*version = "\K[^"]+' "$WRAPPER_FILE" | head -n1 || true
 }
 
+get_current_hash() {
+  grep -oP '^\s*sha256 = "\K[^"]+' "$WRAPPER_FILE" | head -n1 || true
+}
+
 update_wrapper() {
   local version="$1" hash="$2"
-  info "Updating $WRAPPER_FILE..." >&2
+  info "Updating $WRAPPER_FILE..."
 
   local tmp
   tmp=$(mktemp)
-  trap 'rm -f "$tmp"' RETURN
 
   awk -v version="$version" -v hash="$hash" '
-    /^[[:space:]]*version = "/ && !seen_version {
+    /^[[:space:]]*version = ".*";$/ && !seen_version {
       print "  version = \"" version "\";"
       seen_version = 1
       next
     }
-    /^[[:space:]]*sha256 = "sha256-/ && !seen_sha256 {
+    /^[[:space:]]*sha256 = "sha256-.*";$/ && !seen_hash {
       print "    sha256 = \"" hash "\";"
-      seen_sha256 = 1
+      seen_hash = 1
       next
     }
     { print }
   ' "$WRAPPER_FILE" > "$tmp"
 
+  if ! grep -q "version = \"$version\"" "$tmp"; then
+    rm -f "$tmp"
+    die "Failed to update version in $WRAPPER_FILE"
+  fi
+  if ! grep -q "sha256 = \"$hash\"" "$tmp"; then
+    rm -f "$tmp"
+    die "Failed to update hash in $WRAPPER_FILE"
+  fi
+
   mv "$tmp" "$WRAPPER_FILE"
-  trap - RETURN
 }
 
 update_flake_lock() {
@@ -122,38 +147,63 @@ update_flake_lock() {
   nix flake update --flake "$SCRIPT_DIR"
 }
 
+format_files() {
+  info "Formatting files..."
+  nix fmt || die "Failed to format files"
+}
+
 commit_changes() {
   local version="$1"
-
   info "Committing changes..."
-  git add "$WRAPPER_FILE" "$LOCK_FILE"
-  git commit -m "chore(launcher): bump version to $version"
+
+  git add "$WRAPPER_FILE" "$LOCK_FILE" || die "Failed to stage changes"
+  git commit -m "chore(launcher): bump version to $version" || die "Failed to commit changes"
 
   if [[ "$PUSH" == "true" ]]; then
     info "Pushing changes..."
-    git push
+    git push || die "Failed to push changes"
   fi
 }
 
 main() {
-  read -r VERSION SRI_HASH <<< "$(fetch_version_info)"
+  local version_info
+  if ! version_info=$(fetch_version_info); then
+    exit 1
+  fi
 
-  local current_version
+  read -r VERSION SRI_HASH <<< "$version_info"
+
+  local current_version current_hash
   current_version=$(get_current_version)
+  current_hash=$(get_current_hash)
 
-  if [[ "$current_version" == "$VERSION" ]]; then
+  local has_changes=false
+  if ! git diff --quiet "$WRAPPER_FILE" "$LOCK_FILE" 2> /dev/null; then
+    has_changes=true
+  fi
+
+  if [[ "$current_version" == "$VERSION" && "$current_hash" == "$SRI_HASH" ]]; then
+    if [[ "$has_changes" == "true" && "$COMMIT" == "true" ]]; then
+      info "Version already up to date, committing existing changes..."
+      commit_changes "$VERSION"
+      info "Successfully committed version $VERSION"
+      exit 0
+    fi
+
     info "Already up to date (version $VERSION)"
     exit 0
   fi
 
+  info "Updating from $current_version to $VERSION"
   update_wrapper "$VERSION" "$SRI_HASH"
-  info "Successfully updated to version $VERSION"
-
+  format_files
   update_flake_lock
 
   if [[ "$COMMIT" == "true" ]]; then
     commit_changes "$VERSION"
   fi
+
+  info "Successfully updated to version $VERSION"
 }
 
 main

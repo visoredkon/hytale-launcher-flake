@@ -7,9 +7,7 @@
     { self, nixpkgs }:
     let
       system = "x86_64-linux";
-      pkgs = import nixpkgs {
-        inherit system;
-      };
+      pkgs = nixpkgs.legacyPackages.${system};
       hytale-launcher = pkgs.callPackage ./wrapper.nix { };
 
       nixFiles = [
@@ -22,6 +20,7 @@
     {
       packages.${system} = {
         inherit hytale-launcher;
+        hytale-launcher-unwrapped = hytale-launcher.unwrapped;
         default = hytale-launcher;
       };
 
@@ -32,8 +31,8 @@
       };
 
       formatter.${system} = pkgs.writeShellScriptBin "format-all" ''
-        ${pkgs.nixfmt}/bin/nixfmt ${toString nixFiles}
-        ${pkgs.shfmt}/bin/shfmt -w ${shfmtOpts} ${toString shellScripts}
+        ${pkgs.nixfmt}/bin/nixfmt flake.nix wrapper.nix
+        ${pkgs.shfmt}/bin/shfmt -w ${shfmtOpts} update-version.sh
       '';
 
       checks.${system} = {
@@ -50,8 +49,8 @@
             }
             ''
               cd $src
-              nixfmt --check flake.nix wrapper.nix
-              shfmt -d ${shfmtOpts} update-version.sh
+              nixfmt --check ${toString nixFiles}
+              shfmt -d ${shfmtOpts} ${toString shellScripts}
               touch $out
             '';
       };
