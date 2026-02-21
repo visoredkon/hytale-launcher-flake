@@ -1,5 +1,4 @@
-#!/usr/bin/env nix-shell
-#!nix-shell -i bash -p curl jq nix
+#!/usr/bin/env bash
 
 set -euo pipefail
 
@@ -66,8 +65,23 @@ parse_args() {
 
 parse_args "$@"
 
-fetch_version_info() {
+fetch_latest_version() {
   info "Fetching latest version from API..."
+
+  local api_data version
+  if ! api_data=$(curl -fsSL "$API_URL" 2>&1); then
+    die "Failed to fetch API data: $api_data"
+  fi
+
+  if ! version=$(jq -er '.version' <<< "$api_data" 2>&1); then
+    die "Missing version in API response: $version"
+  fi
+
+  printf '%s' "$version"
+}
+
+fetch_version_info() {
+  info "Fetching latest version and computing hash..."
 
   local api_data
   if ! api_data=$(curl -fsSL "$API_URL" 2>&1); then
@@ -166,13 +180,6 @@ commit_changes() {
 }
 
 main() {
-  local version_info
-  if ! version_info=$(fetch_version_info); then
-    exit 1
-  fi
-
-  read -r VERSION SRI_HASH <<< "$version_info"
-
   local current_version current_hash
   current_version=$(get_current_version)
   current_hash=$(get_current_hash)
@@ -182,17 +189,27 @@ main() {
     has_changes=true
   fi
 
-  if [[ "$current_version" == "$VERSION" && "$current_hash" == "$SRI_HASH" ]]; then
+  local latest_version
+  latest_version=$(fetch_latest_version)
+
+  if [[ "$current_version" == "$latest_version" ]]; then
     if [[ "$has_changes" == "true" && "$COMMIT" == "true" ]]; then
       info "Version already up to date, committing existing changes..."
-      commit_changes "$VERSION"
-      info "Successfully committed version $VERSION"
+      commit_changes "$latest_version"
+      info "Successfully committed version $latest_version"
       exit 0
     fi
 
-    info "Already up to date (version $VERSION)"
+    info "Already up to date (version $latest_version)"
     exit 0
   fi
+
+  local version_info
+  if ! version_info=$(fetch_version_info); then
+    exit 1
+  fi
+
+  read -r VERSION SRI_HASH <<< "$version_info"
 
   info "Updating from $current_version to $VERSION"
   update_wrapper "$VERSION" "$SRI_HASH"
