@@ -141,10 +141,15 @@ let
       }
     fi
 
+    export DESKTOP_STARTUP_ID="${app.appId}"
     export GTK_THEME="adw-gtk3"
-    export WEBKIT_DISABLE_COMPOSITING_MODE=1
-
     export GIO_EXTRA_MODULES="${pkgs.glib-networking}/lib/gio/modules"
+
+    export __NV_DISABLE_EXPLICIT_SYNC=1
+    export WEBKIT_DISABLE_COMPOSITING_MODE=1
+    export WEBKIT_DISABLE_DMABUF_RENDERER=1
+
+    export JAVA_HOME="${pkgs.temurin-bin-25}"
     export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
     export LD_LIBRARY_PATH="${pkgs.openssl.out}/lib:''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
@@ -159,6 +164,7 @@ let
       pkgs: with pkgs; [
         hytale-launcher-unwrapped
 
+        alsa-lib
         at-spi2-atk
         at-spi2-core
         atk
@@ -266,7 +272,10 @@ let
         sqlite
         stdenv.cc.cc.lib
         systemd
+        temurin-bin-25
+        udev
         util-linux
+        xdg-utils
         xz
         zlib
         zstd
