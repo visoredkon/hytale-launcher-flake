@@ -74,7 +74,7 @@
         '';
       };
 
-      overlays.default = final: prev: {
+      overlays.default = _final: prev: {
         hytale-launcher = prev.callPackage ./wrapper.nix { };
       };
     };
