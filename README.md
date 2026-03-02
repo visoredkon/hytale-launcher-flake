@@ -15,17 +15,17 @@ Run the **official Hytale Launcher** on NixOS through a compatibility wrapper.
 NixOS doesn't provide the traditional Filesystem Hierarchy Standard (FHS) environment that most Linux applications expect. This flake creates an FHS-compatible sandbox that allows the official Hytale Launcher to run without modifications.
 
 **What this provides:**
-- ✅ FHS-compatible runtime environment
-- ✅ Proper binary installation and version tracking
-- ✅ Required system libraries (GTK, WebKit, graphics, audio)
+- FHS-compatible runtime environment
+- Proper binary installation and version tracking
+- Required system libraries (GTK, WebKit, graphics, audio)
 
 **What this does NOT do:**
-- ❌ Bypass authentication, DRM, or security systems
-- ❌ Circumvent technical protections or anti-cheat systems
-- ❌ Enable offline play, cracks, or unauthorized access
-- ❌ Modify, decompile, or reverse engineer the launcher binary
-- ❌ Provide mods, cheats, exploits, or unauthorized tools
-- ❌ Redistribute Hytale binaries or game assets
+- Bypass authentication, DRM, or security systems
+- Circumvent technical protections or anti-cheat systems
+- Enable offline play, cracks, or unauthorized access
+- Modify, decompile, or reverse engineer the launcher binary
+- Provide mods, cheats, exploits, or unauthorized tools
+- Redistribute Hytale binaries or game assets
 
 ---
 
