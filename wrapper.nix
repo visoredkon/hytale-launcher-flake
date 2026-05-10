@@ -30,8 +30,8 @@ let
     # additional conversion steps.
     #
     # Auto-updated by update-version.sh
-    version = "2026.04.23-8981adc";
-    sha256 = "sha256-mbZ5WrLAEKxaO6EHXg85uIFT/LIKL+2bbhBdONzmkQo=";
+    version = "2026.05.07-c55b318";
+    sha256 = "sha256-IEpnrBpjg/wwhKzmzTkI/a09h47htN3x3VKFP8ZACqU=";
     # End of auto-updated section
 
     baseUrl = "https://launcher.hytale.com/builds/release/linux/amd64";
