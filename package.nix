@@ -277,13 +277,15 @@ in
 pkgs.symlinkJoin {
   name = app.pname;
 
-  passthru = {
-    inherit meta;
-    unwrapped = hytale-launcher-unwrapped;
-  };
-
   paths = [
     fhs
     hytale-launcher-unwrapped
   ];
+
+  inherit meta;
+
+  passthru = {
+    inherit meta;
+    unwrapped = hytale-launcher-unwrapped;
+  };
 }

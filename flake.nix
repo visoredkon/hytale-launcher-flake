@@ -48,7 +48,7 @@
       formatter.${system} = formatterApp;
 
       overlays.default = _: prev: {
-        hytale-launcher = self.packages.${prev.stdenv.hostPlatform.system}.hytale-launcher;
+        hytale-launcher = prev.callPackage ./package.nix { };
       };
 
       packages.${system} = {
