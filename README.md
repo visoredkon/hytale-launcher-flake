@@ -179,30 +179,25 @@ nixpkgs.config.allowUnfreePredicate = pkg:
 Automated script to fetch the latest launcher from Hytale's API:
 
 ```bash
-./update-version.sh              # Preview changes
-./update-version.sh --commit     # Commit changes
-./update-version.sh --push       # Commit and push
+nix run .#update-release              # Preview changes
+nix run .#update-release -- --commit  # Commit changes
+nix run .#update-release -- --push    # Commit and push
 ```
 
 The script automatically:
 - Fetches version and download URL from `https://launcher.hytale.com/version/release/launcher.json`
 - Derives Flatpak URL from ZIP URL (replaces `.zip` with `.flatpak`)
 - Downloads and computes SHA-256 hash of Flatpak package
-- Updates `version` and `sha256` in [wrapper.nix](wrapper.nix)
+- Updates `version` and `sha256` in [release.nix](release.nix)
 - Formats files and updates [flake.lock](flake.lock)
 - Creates conventional commit message (if `--commit` flag is used)
 
-### Development Shell
+### Available Commands
 
-```bash
-nix develop
-```
-
-Available commands:
 - `nix build` - Build the package
-- `nix fmt` - Format Nix and shell files
+- `nix fmt` - Format Nix files
 - `nix flake check` - Run build and format validation checks
-- `./update-version.sh` - Update launcher version
+- `nix run .#update-release` - Update launcher version
 
 ### Package Structure
 
@@ -228,8 +223,8 @@ Available commands:
 
 **Available outputs:**
 - `packages.default` - Full FHS wrapper (recommended)
-- `packages.hytale-launcher-unwrapped` - Raw binary without FHS
 - `apps.default` - Runnable application
+- `apps.update-release` - Script to automate fetching new releases
 
 ---
 
@@ -274,7 +269,7 @@ This wrapper is designed to respect Hytale's [Terms of Service](https://hytale.c
 |:-------|:---------------|
 | **Authentication** | Handled entirely by official launcher. No credential interception. |
 | **Distribution** | Only Nix code is distributed. Binaries downloaded directly from official sources. |
-| **Launcher Binary** | Downloaded from `launcher.hytale.com`. SHA-256 checksums computed and pinned in wrapper.nix. |
+| **Launcher Binary** | Downloaded from `launcher.hytale.com`. SHA-256 checksums computed and pinned in release.nix. |
 | **No Circumvention** | No bypassing of technical protections, DRM, or anti-cheat systems. |
 | **No Modifications** | Binary runs unmodified in FHS sandbox. No decompilation, reverse engineering, or code injection. |
 
