@@ -155,7 +155,7 @@ let
     inherit meta;
     name = app.execName;
 
-    runScript = "${wrapperScript}/bin/hytale-launcher-wrapper";
+    runScript = "hytale-launcher-wrapper";
 
     targetPkgs =
       pkgs: with pkgs; [
@@ -271,6 +271,8 @@ let
         xz
         zlib
         zstd
+
+        wrapperScript
       ];
   };
 in
