@@ -8,6 +8,12 @@
   outputs =
     { self, nixpkgs }:
     let
+      system = "x86_64-linux";
+
+      pkgs = import nixpkgs {
+        inherit system;
+      };
+
       formatTargets = "apps/*.nix flake.nix package.nix release.nix";
 
       formatterApp = pkgs.callPackage ./apps/formatter.nix { inherit formatTargets; };
@@ -18,12 +24,6 @@
         inherit program;
         type = "app";
       };
-
-      pkgs = import nixpkgs {
-        inherit system;
-      };
-
-      system = "x86_64-linux";
 
       update-release = pkgs.callPackage ./apps/update-release.nix { };
     in

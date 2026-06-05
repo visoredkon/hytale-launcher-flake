@@ -160,7 +160,8 @@ let
     runScript = "hytale-launcher-wrapper";
 
     targetPkgs =
-      pkgs: with pkgs; [
+      pkgs:
+      (with pkgs; [
         alsa-lib
         at-spi2-atk
         at-spi2-core
@@ -273,7 +274,8 @@ let
         xz
         zlib
         zstd
-
+      ])
+      ++ [
         wrapperScript
       ];
   };
@@ -289,7 +291,6 @@ pkgs.symlinkJoin {
   inherit meta;
 
   passthru = {
-    inherit meta;
     unwrapped = hytale-launcher-unwrapped;
   };
 }
