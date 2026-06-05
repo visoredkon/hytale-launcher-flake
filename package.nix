@@ -49,6 +49,8 @@ let
 
       install -Dm644 files/share/applications/${app.desktopFileName} \
         $out/share/applications/${app.desktopFileName}
+      sed -i 's|^Exec=hytale-launcher-wrapper$|Exec=hytale-launcher|' \
+        $out/share/applications/${app.desktopFileName}
 
       install -Dm644 files/share/metainfo/${app.metainfoFileName} \
         $out/share/metainfo/${app.metainfoFileName}
