@@ -178,7 +178,6 @@ let
         fontconfig
         freetype
         fribidi
-        gccNGPackages_15.libatomic
         gdk-pixbuf
         glib
         glib-networking
