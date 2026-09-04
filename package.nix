@@ -22,18 +22,11 @@ let
     metainfoFileName = "${appId}.metainfo.xml";
     pname = "hytale-launcher";
 
-    # Version information obtained from the official Hytale API endpoint:
-    # https://launcher.hytale.com/version/release/launcher.json
-    #
-    # The API provides download URLs in .zip format, but Flatpak packages are
-    # available at the same location by replacing .zip with .flatpak extension.
-    # This undocumented feature allows direct access to Flatpak builds without
-    # additional conversion steps.
     inherit (release) sha256 version;
   };
 
   flatpakSrc = pkgs.fetchurl {
-    sha256 = app.sha256;
+    inherit (app) sha256;
     url = app.flatpakUrl;
   };
 
@@ -101,7 +94,7 @@ let
   wrapperScript = pkgs.writeShellApplication {
     name = "hytale-launcher-wrapper";
     text = ''
-      set -e
+      set -euo pipefail
 
       BUNDLED_VERSION_FILE="''${XDG_DATA_HOME:-$HOME/.local/share}/Hytale/.bundled_version"
       CURRENT_VERSION="${app.version}"

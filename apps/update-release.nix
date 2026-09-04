@@ -14,6 +14,10 @@ pkgs.writeShellApplication {
   text = ''
     set -euo pipefail
 
+    curl_retry() {
+      curl --retry 5 --retry-delay 2 --retry-all-errors --connect-timeout 10 "$@"
+    }
+
     COMMIT=false
     PUSH=false
 
@@ -59,8 +63,10 @@ pkgs.writeShellApplication {
     releaseFile="$root/release.nix"
     API_URL="https://launcher.hytale.com/version/release/launcher.json"
 
+    git -C "$root" pull || echo "Warning: git pull failed, continuing..." >&2
+
     echo "==> Fetching latest release info..." >&2
-    api_data=$(curl -fsSL "$API_URL")
+    api_data=$(curl_retry -fsSL "$API_URL")
     version=$(jq -er '.version' <<< "$api_data")
     zip_url=$(jq -er '.download_url.linux.amd64.url' <<< "$api_data")
 
@@ -88,8 +94,7 @@ pkgs.writeShellApplication {
 
     echo "==> Updating from $current_version to $version..." >&2
     flatpak_url="''${zip_url%.zip}.flatpak"
-    nix_hash=$(nix-prefetch-url --type sha256 "$flatpak_url" | tail -n1)
-    sri_hash=$(nix --extra-experimental-features "nix-command" hash convert --to sri --hash-algo sha256 "$nix_hash")
+    sri_hash=$(nix --extra-experimental-features "nix-command" store prefetch-file --json "$flatpak_url" | jq -er '.hash')
 
     cat > "$releaseFile" <<EOF
     {
@@ -106,7 +111,7 @@ pkgs.writeShellApplication {
 
     if [[ "$COMMIT" == "true" ]]; then
       echo "==> Committing changes..." >&2
-      git -C "$root" add .
+      git -C "$root" add release.nix flake.lock
       git -C "$root" commit -m "chore(launcher): bump version to $version"
       if [[ "$PUSH" == "true" ]]; then
         echo "==> Pushing changes..." >&2
