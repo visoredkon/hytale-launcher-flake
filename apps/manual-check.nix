@@ -16,6 +16,8 @@ let
 
     enoent: set[str] = set()
     success: set[str] = set()
+    success_via_fhs: set[str] = set()
+    success_via_host: set[str] = set()
     enoent_counter: Counter[str] = Counter()
     success_counter: Counter[str] = Counter()
 
@@ -38,6 +40,15 @@ let
             success.add(base)
             success_counter[base] += 1
 
+        if '"/lib/' in line or '"lib' in line and "/lib/" in raw:
+            success_via_fhs.add(base)
+        elif "/run/opengl-driver" in raw or "/nix/store" in raw:
+            success_via_host.add(base)
+        elif raw.startswith(("/lib/", "lib")):
+            success_via_fhs.add(base)
+        else:
+            success_via_host.add(base)
+
     only_enoent: set[str] = enoent - success
 
     fallback_pairs: dict[str, str] = {
@@ -59,6 +70,9 @@ let
             continue
         real_missing.add(lib)
 
+    host_fallback: set[str] = success_via_host - success_via_fhs
+    host_fallback = {lib for lib in host_fallback if lib not in fallback_pairs}
+
     print()
     print("=== Hytale Manual Trace Report ===")
     print(f"Log: {log_path}")
@@ -66,7 +80,8 @@ let
     print(f"  ENOENT unique: {len(enoent)}")
     print(f"  Success unique: {len(success)}")
     print(f"  Only ENOENT (never succeeded): {len(only_enoent)}")
-    print(f"  Real missing after fallback filter: {len(real_missing)}")
+    print(f"  Real missing primary (no fallback): {len(real_missing)}")
+    print(f"  Host fallback (found via host, not FHS): {len(host_fallback)}")
     print()
 
     if real_missing:
@@ -79,6 +94,16 @@ let
         print()
     else:
         print("No missing primary libs, all ENOENT had fallback success")
+        print()
+
+    if host_fallback:
+        print("Host fallback libs (found via host driver, not FHS):")
+        for lib in sorted(host_fallback)[:15]:
+            print(f"  - {lib}")
+        if len(host_fallback) > 15:
+            print(f"  ... and {len(host_fallback) - 15} more")
+        print("  Note: these came from /run/opengl-driver or host /nix/store,")
+        print("  not from FHS /lib. Usually driver libs, not a packaging gap.")
         print()
 
     exec_checks = {

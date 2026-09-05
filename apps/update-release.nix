@@ -33,12 +33,25 @@ pkgs.writeShellApplication {
       ' "$release_file" 2>/dev/null || true
     }
 
+    display_version() {
+      if [[ -n "$1" ]]; then
+        echo "$1"
+      else
+        echo "unknown"
+      fi
+    }
+
+    fail() {
+      echo "Error: launcher: $1" >&2
+      exit 1
+    }
+
     parse_update() {
       IFS=':' read -r pkg from_version to_version <<<"$1"
     }
 
     usage() {
-      cat <<EOF
+      cat <<'EOF'
     Usage: update-release [OPTIONS] [DIR]
 
     OPTIONS:
@@ -82,19 +95,36 @@ pkgs.writeShellApplication {
 
     git pull || echo "git pull failed, continuing anyway" >&2
 
-    echo "fetch hytale launcher version from upstream" >&2
-    api_data=$(curl_retry -fsSL "$API_URL")
-    version=$(jq -er '.version' <<< "$api_data")
-    zip_url=$(jq -er '.download_url.linux.amd64.url' <<< "$api_data")
+    echo "check launcher from $API_URL" >&2
+    api_data=$(curl_retry -fsSL "$API_URL" 2>/dev/null || true)
+
+    if [[ -z "$api_data" ]]; then
+      fail "failed to fetch launcher metadata"
+    fi
+
+    version=$(jq -r '.version // ""' <<<"$api_data")
+    zip_url=$(jq -r '.download_url.linux.amd64.url // ""' <<<"$api_data")
+
+    if [[ -z "$version" ]]; then
+      fail "failed to determine version"
+    fi
+
+    if [[ -z "$zip_url" ]]; then
+      fail "failed to determine download URL"
+    fi
 
     current_version=$(release_field_value "$releaseFile" "version")
 
     updates=()
 
     if [[ "$current_version" != "$version" ]]; then
-      echo "upstream $version, local was $current_version, writing release.nix" >&2
+      echo "launcher: $(display_version "$current_version") -> $version" >&2
       flatpak_url="''${zip_url%.zip}.flatpak"
-      sri_hash=$(nix --extra-experimental-features "nix-command" store prefetch-file --json "$flatpak_url" | jq -er '.hash')
+      sri_hash=$(nix --extra-experimental-features "nix-command" store prefetch-file --json "$flatpak_url" 2>/dev/null | jq -r '.hash // ""' || true)
+
+      if [[ -z "$sri_hash" ]]; then
+        fail "failed to determine sha256"
+      fi
 
       cat > "$releaseFile" <<EOF
     {
@@ -103,7 +133,9 @@ pkgs.writeShellApplication {
     }
     EOF
 
-      updates+=("launcher:$current_version:$version")
+      echo "wrote $releaseFile" >&2
+
+      updates+=("launcher:$(display_version "$current_version"):$version")
     else
       echo "already on $version" >&2
     fi
