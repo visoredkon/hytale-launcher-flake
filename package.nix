@@ -101,6 +101,7 @@ let
       LAUNCHER_BIN="''${XDG_DATA_HOME:-$HOME/.local/share}/Hytale/hytale-launcher"
       LAUNCHER_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/Hytale"
       LAUNCHER_LOG="''${XDG_DATA_HOME:-$HOME/.local/share}/Hytale/launcher-wrapper.log"
+      LAUNCHER_TMP_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/Hytale/.nix-tmp"
 
       log_error() {
         local msg="$1"
@@ -112,7 +113,7 @@ let
         exit 1
       }
 
-      mkdir -p "$LAUNCHER_DIR" || log_error "Failed to create launcher directory"
+      mkdir -p "$LAUNCHER_DIR" "$LAUNCHER_TMP_DIR" || log_error "Failed to create launcher directory"
 
       BUNDLED_BIN="${hytale-launcher-unwrapped}/lib/hytale-launcher/hytale-launcher"
 
@@ -135,12 +136,14 @@ let
       export DESKTOP_STARTUP_ID="${app.appId}"
       export GIO_EXTRA_MODULES="${pkgs.glib-networking}/lib/gio/modules"
       export GTK_THEME="adw-gtk3"
-      export JAVA_HOME="${pkgs.temurin-bin-25}"
       export LD_LIBRARY_PATH="${pkgs.openssl.out}/lib:''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
       export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       export WEBKIT_DISABLE_COMPOSITING_MODE=1
       export WEBKIT_DISABLE_DMABUF_RENDERER=1
       export __NV_DISABLE_EXPLICIT_SYNC=1
+
+      unset XDG_CACHE_HOME
+      export TMPDIR="$LAUNCHER_TMP_DIR"
 
       exec "$LAUNCHER_BIN" "$@"
     '';
@@ -161,9 +164,11 @@ let
         atk
         brotli
         bzip2
+        cacert
         cairo
         dav1d
         dbus
+        egl-wayland
         elfutils
         enchant_2
         expat
@@ -188,27 +193,18 @@ let
         krb5
         lame
         lcms2
-        libGL
-        libX11
-        libXau
-        libXcomposite
-        libXcursor
-        libXdamage
-        libXext
-        libXfixes
-        libXi
-        libXinerama
-        libXrandr
-        libXrender
         libaom
         libappindicator-gtk3
         libavif
         libcap
+        libdecor
         libdrm
         libepoxy
         libevdev
         libffi
         libgcrypt
+        libGL
+        libGLU
         libglvnd
         libgpg-error
         libgudev
@@ -234,15 +230,30 @@ let
         libunwind
         libvorbis
         libwebp
+        libX11
+        libXau
         libxcb
+        libXcomposite
+        libXcursor
+        libXdamage
+        libXext
+        libXfixes
+        libXi
+        libXinerama
         libxkbcommon
         libxml2
+        libXrandr
+        libXrender
+        libxscrnsaver
         libxshmfence
         libxslt
+        libxxf86vm
         mesa
         nettle
         nghttp2
+        nspr
         nss
+        numactl
         openssl
         orc
         p11-kit
@@ -255,10 +266,10 @@ let
         sqlite
         stdenv.cc.cc.lib
         systemd
-        temurin-bin-25
         tinysparql
         udev
         util-linux
+        vulkan-loader
         wayland
         webkitgtk_4_1
         woff2

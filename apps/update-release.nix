@@ -14,21 +14,37 @@ pkgs.writeShellApplication {
   text = ''
     set -euo pipefail
 
+    COMMIT=false
+    PUSH=false
+
     curl_retry() {
       curl --retry 5 --retry-delay 2 --retry-all-errors --connect-timeout 10 "$@"
     }
 
-    COMMIT=false
-    PUSH=false
+    release_field_value() {
+      local release_file="$1"
+      local field="$2"
+
+      gawk -v field="$field" '
+        match($0, field "[[:space:]]*=[[:space:]]*\"([^\"]*)\"", groups) {
+          print groups[1]
+          exit
+        }
+      ' "$release_file" 2>/dev/null || true
+    }
+
+    parse_update() {
+      IFS=':' read -r pkg from_version to_version <<<"$1"
+    }
 
     usage() {
       cat <<EOF
-    Usage: ./update-release [OPTIONS] [DIR]
+    Usage: update-release [OPTIONS] [DIR]
 
     OPTIONS:
-      --commit       Commit updated release.nix and flake.lock
-      --push         Push after committing (implies --commit)
-      -h, --help     Show this help message
+      --commit             Commit updated release.nix and flake.lock
+      --push               Push after committing (implies --commit)
+      -h, --help           Show this help message
     EOF
     }
 
@@ -60,65 +76,90 @@ pkgs.writeShellApplication {
     done
 
     root="''${root:-$(pwd)}"
-    releaseFile="$root/release.nix"
+    cd "$root" || exit 1
+    releaseFile="release.nix"
     API_URL="https://launcher.hytale.com/version/release/launcher.json"
 
-    git -C "$root" pull || echo "Warning: git pull failed, continuing..." >&2
+    git pull || echo "git pull failed, continuing anyway" >&2
 
-    echo "==> Fetching latest release info..." >&2
+    echo "fetch hytale launcher version from upstream" >&2
     api_data=$(curl_retry -fsSL "$API_URL")
     version=$(jq -er '.version' <<< "$api_data")
     zip_url=$(jq -er '.download_url.linux.amd64.url' <<< "$api_data")
 
-    current_version="$(sed -n 's/^[[:space:]]*version = "\([^"]*\)";$/\1/p' "$releaseFile" | head -n1 || true)"
+    current_version=$(release_field_value "$releaseFile" "version")
 
-    has_changes=false
-    if [ -n "$(git -C "$root" status --porcelain release.nix flake.lock 2>/dev/null)" ]; then
-      has_changes=true
-    fi
+    updates=()
 
-    if [[ "$current_version" == "$version" ]]; then
-      if [[ "$has_changes" == "true" && "$COMMIT" == "true" ]]; then
-        echo "==> Committing existing changes for version $version..." >&2
-        git -C "$root" add release.nix flake.lock
-        git -C "$root" commit -m "chore(launcher): bump version to $version"
-        if [[ "$PUSH" == "true" ]]; then
-          echo "==> Pushing changes..." >&2
-          git -C "$root" push
-        fi
-        exit 0
-      fi
-      echo "==> Already up to date (version $version)" >&2
-      exit 0
-    fi
+    if [[ "$current_version" != "$version" ]]; then
+      echo "upstream $version, local was $current_version, writing release.nix" >&2
+      flatpak_url="''${zip_url%.zip}.flatpak"
+      sri_hash=$(nix --extra-experimental-features "nix-command" store prefetch-file --json "$flatpak_url" | jq -er '.hash')
 
-    echo "==> Updating from $current_version to $version..." >&2
-    flatpak_url="''${zip_url%.zip}.flatpak"
-    sri_hash=$(nix --extra-experimental-features "nix-command" store prefetch-file --json "$flatpak_url" | jq -er '.hash')
-
-    cat > "$releaseFile" <<EOF
+      cat > "$releaseFile" <<EOF
     {
       sha256 = "$sri_hash";
       version = "$version";
     }
     EOF
 
-    echo "==> Formatting files..." >&2
-    nix --extra-experimental-features "nix-command flakes" fmt 2>/dev/null || true
+      updates+=("launcher:$current_version:$version")
+    else
+      echo "already on $version" >&2
+    fi
 
-    echo "==> Updating flake.lock..." >&2
+    echo "update flake.lock to latest inputs" >&2
     nix --extra-experimental-features "nix-command flakes" flake update 2>/dev/null || true
 
+    echo "format" >&2
+    nix --extra-experimental-features "nix-command flakes" fmt 2>/dev/null || true
+
     if [[ "$COMMIT" == "true" ]]; then
-      echo "==> Committing changes..." >&2
-      git -C "$root" add release.nix flake.lock
-      git -C "$root" commit -m "chore(launcher): bump version to $version"
-      if [[ "$PUSH" == "true" ]]; then
-        echo "==> Pushing changes..." >&2
-        git -C "$root" push
+      echo "stage release.nix and flake.lock for commit" >&2
+      git add release.nix flake.lock
+
+      if git diff --cached --quiet; then
+        echo "nothing to commit" >&2
+      else
+        update_count=''${#updates[@]}
+
+        if [[ "$update_count" -eq 0 ]]; then
+          commit_subject="chore(launcher): refresh release metadata"
+        else
+          parse_update "''${updates[0]}"
+          commit_subject="chore(launcher): bump $pkg $from_version -> $to_version"
+        fi
+
+        commit_message_file=$(mktemp)
+
+        {
+          echo "$commit_subject"
+          echo
+          if [[ "$update_count" -eq 0 ]]; then
+            echo "sync lockfile and release metadata"
+          else
+            echo "bumped:"
+            for update in "''${updates[@]}"; do
+              parse_update "$update"
+              echo "- $pkg: $from_version -> $to_version"
+            done
+          fi
+        } > "$commit_message_file"
+
+        git commit -F "$commit_message_file"
+        rm -f "$commit_message_file"
+
+        if [[ "$PUSH" == "true" ]]; then
+          echo "push to origin" >&2
+          git push
+        fi
       fi
     fi
 
-    echo "==> Successfully updated to version $version" >&2
+    if [[ "''${#updates[@]}" -gt 0 ]]; then
+      echo "now on $version" >&2
+    else
+      echo "done, no version change" >&2
+    fi
   '';
 }

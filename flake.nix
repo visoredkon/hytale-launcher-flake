@@ -20,6 +20,8 @@
 
       hytale-launcher = pkgs.callPackage ./package.nix { };
 
+      manual-check = pkgs.callPackage ./apps/manual-check.nix { inherit hytale-launcher; };
+
       mkApp = program: {
         inherit program;
         type = "app";
@@ -30,6 +32,7 @@
     {
       apps.${system} = {
         default = mkApp "${hytale-launcher}/bin/hytale-launcher";
+        manual-check = mkApp "${manual-check}/bin/hytale-launcher-manual-check";
         update-release = mkApp "${update-release}/bin/hytale-launcher-update-release";
       };
 
