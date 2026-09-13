@@ -93,15 +93,16 @@ let
 
   wrapperScript = pkgs.writeShellApplication {
     name = "hytale-launcher-wrapper";
+    runtimeInputs = with pkgs; [
+      coreutils
+    ];
     text = ''
       set -euo pipefail
 
-      BUNDLED_VERSION_FILE="''${XDG_DATA_HOME:-$HOME/.local/share}/Hytale/.bundled_version"
-      CURRENT_VERSION="${app.version}"
+      BUNDLED_HASH_FILE="''${XDG_DATA_HOME:-$HOME/.local/share}/Hytale/.bundled_hash"
       LAUNCHER_BIN="''${XDG_DATA_HOME:-$HOME/.local/share}/Hytale/hytale-launcher"
       LAUNCHER_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/Hytale"
       LAUNCHER_LOG="''${XDG_DATA_HOME:-$HOME/.local/share}/Hytale/launcher-wrapper.log"
-      LAUNCHER_TMP_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/Hytale/.nix-tmp"
 
       log_error() {
         local msg="$1"
@@ -113,37 +114,22 @@ let
         exit 1
       }
 
-      mkdir -p "$LAUNCHER_DIR" "$LAUNCHER_TMP_DIR" || log_error "Failed to create launcher directory"
+      mkdir -p "$LAUNCHER_DIR" || log_error "Failed to create launcher directory"
 
       BUNDLED_BIN="${hytale-launcher-unwrapped}/lib/hytale-launcher/hytale-launcher"
+      BUNDLED_HASH=$(sha256sum "$BUNDLED_BIN" | cut -d" " -f1)
 
-      NEEDS_UPDATE=false
-      if [ ! -x "$LAUNCHER_BIN" ]; then
-        NEEDS_UPDATE=true
-      elif [ ! -f "$BUNDLED_VERSION_FILE" ]; then
-        NEEDS_UPDATE=true
-      elif [ "$(cat "$BUNDLED_VERSION_FILE")" != "$CURRENT_VERSION" ]; then
-        NEEDS_UPDATE=true
-      fi
-
-      if [ "$NEEDS_UPDATE" = true ]; then
+      if [ ! -x "$LAUNCHER_BIN" ] || [ ! -f "$BUNDLED_HASH_FILE" ] || [ "$(cat "$BUNDLED_HASH_FILE")" != "$BUNDLED_HASH" ]; then
         install -m755 "$BUNDLED_BIN" "$LAUNCHER_BIN" || log_error "Failed to install launcher binary"
-        echo "$CURRENT_VERSION" > "$BUNDLED_VERSION_FILE" || {
-          echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: Failed to save version file" >> "$LAUNCHER_LOG"
-        }
+        echo "$BUNDLED_HASH" > "$BUNDLED_HASH_FILE" || log_error "Failed to save hash file"
       fi
 
-      export DESKTOP_STARTUP_ID="${app.appId}"
       export GIO_EXTRA_MODULES="${pkgs.glib-networking}/lib/gio/modules"
-      export GTK_THEME="adw-gtk3"
       export LD_LIBRARY_PATH="${pkgs.openssl.out}/lib:''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
       export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       export WEBKIT_DISABLE_COMPOSITING_MODE=1
       export WEBKIT_DISABLE_DMABUF_RENDERER=1
       export __NV_DISABLE_EXPLICIT_SYNC=1
-
-      unset XDG_CACHE_HOME
-      export TMPDIR="$LAUNCHER_TMP_DIR"
 
       exec "$LAUNCHER_BIN" "$@"
     '';

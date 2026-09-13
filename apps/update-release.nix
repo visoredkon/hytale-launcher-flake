@@ -21,18 +21,6 @@ pkgs.writeShellApplication {
       curl --retry 5 --retry-delay 2 --retry-all-errors --connect-timeout 10 "$@"
     }
 
-    release_field_value() {
-      local release_file="$1"
-      local field="$2"
-
-      gawk -v field="$field" '
-        match($0, field "[[:space:]]*=[[:space:]]*\"([^\"]*)\"", groups) {
-          print groups[1]
-          exit
-        }
-      ' "$release_file" 2>/dev/null || true
-    }
-
     display_version() {
       if [[ -n "$1" ]]; then
         echo "$1"
@@ -48,6 +36,18 @@ pkgs.writeShellApplication {
 
     parse_update() {
       IFS=':' read -r pkg from_version to_version <<<"$1"
+    }
+
+    release_field_value() {
+      local release_file="$1"
+      local field="$2"
+
+      gawk -v field="$field" '
+        match($0, field "[[:space:]]*=[[:space:]]*\"([^\"]*)\"", groups) {
+          print groups[1]
+          exit
+        }
+      ' "$release_file" || true
     }
 
     usage() {
@@ -95,8 +95,9 @@ pkgs.writeShellApplication {
 
     git pull || echo "git pull failed, continuing anyway" >&2
 
+    echo "" >&2
     echo "check launcher from $API_URL" >&2
-    api_data=$(curl_retry -fsSL "$API_URL" 2>/dev/null || true)
+    api_data=$(curl_retry -fsSL "$API_URL" || true)
 
     if [[ -z "$api_data" ]]; then
       fail "failed to fetch launcher metadata"
@@ -120,7 +121,7 @@ pkgs.writeShellApplication {
     if [[ "$current_version" != "$version" ]]; then
       echo "launcher: $(display_version "$current_version") -> $version" >&2
       flatpak_url="''${zip_url%.zip}.flatpak"
-      sri_hash=$(nix --extra-experimental-features "nix-command" store prefetch-file --json "$flatpak_url" 2>/dev/null | jq -r '.hash // ""' || true)
+      sri_hash=$(nix store prefetch-file --json "$flatpak_url" | jq -r '.hash // ""' || true)
 
       if [[ -z "$sri_hash" ]]; then
         fail "failed to determine sha256"
@@ -140,15 +141,29 @@ pkgs.writeShellApplication {
       echo "already on $version" >&2
     fi
 
+    echo "" >&2
     echo "update flake.lock to latest inputs" >&2
-    nix --extra-experimental-features "nix-command flakes" flake update 2>/dev/null || true
+    if ! nix flake update; then
+      echo "Warning: flake update failed, continuing with existing flake.lock" >&2
+    fi
 
+    echo "" >&2
     echo "format" >&2
-    nix --extra-experimental-features "nix-command flakes" fmt 2>/dev/null || true
+    if ! nix fmt; then
+      echo "Warning: fmt failed, continuing with unformatted files" >&2
+    fi
 
+    echo "" >&2
+    echo "lint checks" >&2
+    nix build --no-link \
+      ".#checks.x86_64-linux.embedded-lint" \
+      ".#checks.x86_64-linux.format" \
+      ".#checks.x86_64-linux.linter"
+
+    echo "" >&2
     if [[ "$COMMIT" == "true" ]]; then
-      echo "stage release.nix and flake.lock for commit" >&2
-      git add release.nix flake.lock
+      echo "stage formatted files, release.nix, and flake.lock for commit" >&2
+      git add apps flake.lock flake.nix package.nix release.nix
 
       if git diff --cached --quiet; then
         echo "nothing to commit" >&2
@@ -188,6 +203,7 @@ pkgs.writeShellApplication {
       fi
     fi
 
+    echo "" >&2
     if [[ "''${#updates[@]}" -gt 0 ]]; then
       echo "now on $version" >&2
     else

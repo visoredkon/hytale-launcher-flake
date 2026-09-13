@@ -6,7 +6,7 @@ let
     import sys
     from collections import Counter
 
-    log_path = pathlib.Path(sys.argv[1])
+    log_path: pathlib.Path = pathlib.Path(sys.argv[1])
 
     if not log_path.exists():
         print(f"Log not found: {log_path}", file=sys.stderr)
@@ -18,6 +18,7 @@ let
     success: set[str] = set()
     success_via_fhs: set[str] = set()
     success_via_host: set[str] = set()
+
     enoent_counter: Counter[str] = Counter()
     success_counter: Counter[str] = Counter()
 
@@ -106,10 +107,10 @@ let
         print("  not from FHS /lib. Usually driver libs, not a packaging gap.")
         print()
 
-    exec_checks = {
+    exec_checks: dict[str, bool] = {
         "HytaleClient": "HytaleClient" in text,
         "java": "libjvm.so" in text,
-        "xdg-open": text.count("execve") and "xdg-open" in text,
+        "xdg-open": bool(text.count("execve")) and "xdg-open" in text,
     }
 
     print("Execve checks:")

@@ -196,7 +196,7 @@ The script automatically:
 
 - `nix build` - Build the package
 - `nix fmt` - Format Nix files
-- `nix flake check` - Run build and format validation checks
+- `nix flake check` - Run format, linter, and shell/python lint checks
 - `nix run .#update-release` - Update launcher version
 
 ### Package Structure
@@ -251,13 +251,13 @@ The launcher binary is obtained from Hytale's official Flatpak builds:
 
 The wrapper maintains launcher state in `~/.local/share/Hytale`:
 - **Binary**: `hytale-launcher` (copied from Nix store)
-- **Version file**: `.bundled_version` (tracks wrapper version)
+- **Hash file**: `.bundled_hash` (tracks bundled binary hash)
 - **Log file**: `launcher-wrapper.log` (error diagnostics)
 
-Version updates trigger when:
+Binary updates trigger when:
 - Binary doesn't exist or isn't executable
-- Version file is missing
-- Version mismatch between wrapper and binary
+- Hash file is missing
+- Hash mismatch between wrapper and binary
 
 ---
 
