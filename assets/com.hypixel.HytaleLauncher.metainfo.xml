@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.hypixel.HytaleLauncher</id>
+  <name>Hytale Launcher</name>
+  <summary>Official launcher for Hytale</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <developer id="com.hypixel">
+    <name>Hypixel Studios Canada inc.</name>
+  </developer>
+  <description>
+    <p>
+      The official Hytale Launcher allows you to download, install, and play Hytale.
+      Stay up to date with the latest game updates and manage your game installation.
+    </p>
+  </description>
+  <launchable type="desktop-id">com.hypixel.HytaleLauncher.desktop</launchable>
+  <url type="homepage">https://hytale.com</url>
+  <categories>
+    <category>Game</category>
+  </categories>
+  <content_rating type="oars-1.1" />
+  <branding>
+    <color type="primary" scheme_preference="light">#4a90d9</color>
+    <color type="primary" scheme_preference="dark">#1a3a5c</color>
+  </branding>
+</component>
